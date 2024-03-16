@@ -18,12 +18,11 @@ package controller
 
 import (
 	"context"
-	"time"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 
 	demov1alpha1 "github.com/930c/sleep-operator/api/v1alpha1"
 )
@@ -50,10 +49,17 @@ type SleepReconciler struct {
 func (r *SleepReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
-	// sleep function
-	// sleep for 10 seconds
-	time.Sleep(10 * time.Second)
+	// Logik zum Abrufen der Sleep-Instanz hinzufügen
+	var sleep demov1alpha1.Sleep
+	if err := r.Get(ctx, req.NamespacedName, &sleep); err != nil {
+		log.Log.Error(err, "unable to fetch Sleep")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Die Sleep-Funktion aufrufen basierend auf der spezifizierten Dauer
+	log.Log.Info("Sleeping for", "duration", sleep.Spec.Duration)
+	time.Sleep(time.Duration(sleep.Spec.Duration) * time.Second)
+	log.Log.Info("Finished sleeping")
 
 	return ctrl.Result{}, nil
 }
