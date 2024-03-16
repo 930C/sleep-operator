@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -29,8 +28,8 @@ type SleepSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Sleep. Edit sleep_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Duration in seconds for which the operator should sleep
+	Duration int `json:"duration,omitempty"`
 }
 
 // SleepStatus defines the observed state of Sleep
@@ -51,11 +50,6 @@ type Sleep struct {
 	Status SleepStatus `json:"status,omitempty"`
 }
 
-func (s Sleep) DeepCopyObject() runtime.Object {
-	//TODO implement me
-	panic("implement me")
-}
-
 //+kubebuilder:object:root=true
 
 // SleepList contains a list of Sleep
@@ -63,11 +57,6 @@ type SleepList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Sleep `json:"items"`
-}
-
-func (s SleepList) DeepCopyObject() runtime.Object {
-	//TODO implement me
-	panic("implement me")
 }
 
 func init() {
