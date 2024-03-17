@@ -18,9 +18,10 @@ package controller
 
 import (
 	"context"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_model/go"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -28,6 +29,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	demov1alpha1 "github.com/930c/sleep-operator/api/v1alpha1"
+)
+
+var (
+	reconcileDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "operator_reconcile_duration_seconds",
+		Help: "Duration of reconcile loops in seconds.",
+	}, []string{"controller"})
 )
 
 var _ = Describe("Sleep Controller", func() {
@@ -55,6 +63,7 @@ var _ = Describe("Sleep Controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
+			prometheus.MustRegister(reconcileDuration)
 		})
 
 		AfterEach(func() {
@@ -66,11 +75,12 @@ var _ = Describe("Sleep Controller", func() {
 			By("Cleanup the specific resource instance Sleep")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-		It("should successfully reconcile the resource", func() {
+		It("should successfully reconcile the resource and update the reconcileDuration metric", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &SleepReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:            k8sClient,
+				Scheme:            k8sClient.Scheme(),
+				ReconcileDuration: reconcileDuration,
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -79,6 +89,23 @@ var _ = Describe("Sleep Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			By("Gathering all registered metrics")
+			metrics, err := prometheus.DefaultGatherer.Gather()
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the reconcileDuration metric")
+			var reconcileDurationMetric *io_prometheus_client.MetricFamily
+			for _, m := range metrics {
+				if m.GetName() == "operator_reconcile_duration_seconds" {
+					reconcileDurationMetric = m
+					break
+				}
+			}
+
+			By("Checking the reconcileDuration metric")
+			Expect(reconcileDurationMetric).NotTo(BeNil())
+			Expect(reconcileDurationMetric.GetMetric()).ToNot(BeEmpty())
 		})
 	})
 })

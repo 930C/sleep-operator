@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +31,8 @@ import (
 // SleepReconciler reconciles a Sleep object
 type SleepReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme            *runtime.Scheme
+	ReconcileDuration *prometheus.HistogramVec
 }
 
 //+kubebuilder:rbac:groups=demo.c930.net,resources=sleeps,verbs=get;list;watch;create;update;patch;delete
@@ -47,6 +49,7 @@ type SleepReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
 func (r *SleepReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	start := time.Now()
 	_ = log.FromContext(ctx)
 
 	// Logik zum Abrufen der Sleep-Instanz hinzufügen
@@ -60,6 +63,9 @@ func (r *SleepReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	log.Log.Info("Sleeping for", "duration", sleep.Spec.Duration)
 	time.Sleep(time.Duration(sleep.Spec.Duration) * time.Second)
 	log.Log.Info("Finished sleeping")
+
+	duration := time.Since(start).Seconds()
+	r.ReconcileDuration.WithLabelValues("sleep").Observe(duration)
 
 	return ctrl.Result{}, nil
 }

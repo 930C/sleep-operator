@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -40,11 +41,17 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme            = runtime.NewScheme()
+	setupLog          = ctrl.Log.WithName("setup")
+	reconcileDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "operator_reconcile_duration_seconds",
+		Help: "Duration of reconcile loops in seconds.",
+	}, []string{"controller"})
 )
 
 func init() {
+	prometheus.MustRegister(reconcileDuration)
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(demov1alpha1.AddToScheme(scheme))
@@ -123,8 +130,9 @@ func main() {
 	}
 
 	if err = (&controller.SleepReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		ReconcileDuration: reconcileDuration,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Sleep")
 		os.Exit(1)
